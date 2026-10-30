@@ -65,15 +65,30 @@ jobs:
           ln -s /Applications dmg/Applications
           cp README.md dmg/Leia-me.md
 
-          # hdiutil as vezes falha com "Resource busy" nos runners: tenta de novo
+          # 1) imagem gravavel  2) comprime. hdiutil as vezes falha com "Resource busy": tenta de novo
+          rm -f tmp.dmg GuitarPad-macOS.dmg
           ok=0
           for i in 1 2 3 4 5; do
-            if hdiutil create -volname GuitarPad -srcfolder dmg -fs HFS+ -format UDZO -ov GuitarPad-macOS.dmg > out.txt 2>&1; then ok=1; break; fi
-            cat out.txt; echo "tentativa $i falhou"; sleep 10
+            rm -f tmp.dmg
+            if hdiutil create -volname GuitarPad -srcfolder dmg -fs HFS+ -format UDRW tmp.dmg > out.txt 2>&1; then ok=1; break; fi
+            cat out.txt; echo "create: tentativa $i falhou"; sleep 10
           done
           [ $ok = 1 ] || fail "hdiutil create"
-          hdiutil verify GuitarPad-macOS.dmg > out.txt 2>&1 || fail "hdiutil verify"
-          ls -la GuitarPad-macOS.dmg
+          ok=0
+          for i in 1 2 3; do
+            rm -f GuitarPad-macOS.dmg
+            if hdiutil convert tmp.dmg -format UDZO -imagekey zlib-level=9 -o GuitarPad-macOS.dmg > out.txt 2>&1; then ok=1; break; fi
+            cat out.txt; echo "convert: tentativa $i falhou"; sleep 10
+          done
+          [ $ok = 1 ] || fail "hdiutil convert"
+          rm -f tmp.dmg
+
+          # valida montando o dmg e conferindo o app dentro
+          ls -la GuitarPad-macOS.dmg; file GuitarPad-macOS.dmg
+          hdiutil attach -nobrowse -readonly -mountpoint /tmp/gpcheck GuitarPad-macOS.dmg > out.txt 2>&1 || fail "hdiutil attach ($(ls -la GuitarPad-macOS.dmg))"
+          test -x /tmp/gpcheck/GuitarPad.app/Contents/MacOS/GuitarPad || { ls -la /tmp/gpcheck > out.txt; fail "app ausente no dmg"; }
+          codesign --verify --deep /tmp/gpcheck/GuitarPad.app > out.txt 2>&1 || fail "assinatura invalida no dmg"
+          hdiutil detach /tmp/gpcheck || hdiutil detach -force /tmp/gpcheck
 
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Windows'
