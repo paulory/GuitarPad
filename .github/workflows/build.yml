@@ -45,21 +45,36 @@ jobs:
           Copy-Item README.md dist/
           Compress-Archive -Path dist/* -DestinationPath GuitarPad-Windows.zip
 
-      - name: Empacotar (macOS)
+      - name: Empacotar DMG (macOS)
         if: runner.os == 'macOS'
         run: |
-          mkdir -p dist
-          cp -R build/GuitarPad_artefacts/Release/GuitarPad.app dist/
-          cp README.md dist/
-          cd dist && ditto -c -k --keepParent GuitarPad.app ../GuitarPad-macOS.zip
+          APP=build/GuitarPad_artefacts/Release/GuitarPad.app
+          # assinatura ad-hoc (sem conta de desenvolvedor), necessaria para rodar em Apple Silicon
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --verbose "$APP"
+          lipo -info "$APP/Contents/MacOS/GuitarPad"
+
+          mkdir -p dmg
+          cp -R "$APP" dmg/
+          ln -s /Applications dmg/Applications
+          cp README.md "dmg/Leia-me.md"
+          hdiutil create -volname "GuitarPad" -srcfolder dmg -fs HFS+ -format UDZO -ov GuitarPad-macOS.dmg
+          hdiutil verify GuitarPad-macOS.dmg
 
       - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
         with:
           name: ${{ matrix.name }}
           path: ${{ matrix.name }}.zip
+
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'macOS'
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}.dmg
 
       - name: Publicar release (tags v*)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ matrix.name }}.zip
+          files: ${{ matrix.name }}.${{ runner.os == 'macOS' && 'dmg' || 'zip' }}

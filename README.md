@@ -7,12 +7,18 @@ Toque guitarra, aperte teclas. O GuitarPad escuta a guitarra pela interface de �
 Cada push no `main` gera os executáveis pelo GitHub Actions:
 
 1. Abra a aba **Actions** do repositório e entre no último build verde.
-2. Em **Artifacts**, baixe `GuitarPad-Windows` (ou `GuitarPad-macOS`).
-3. Descompacte e rode o `GuitarPad.exe`.
+2. Em **Artifacts**, baixe `GuitarPad-Windows` (zip com o .exe) ou `GuitarPad-macOS` (zip com o .dmg).
+3. **Windows**: descompacte e rode o `GuitarPad.exe`.
+   **macOS**: abra o `GuitarPad-macOS.dmg` e arraste o GuitarPad para a pasta Aplicativos.
 
-Para gerar uma release com link fixo, crie uma tag `v0.1.0` (ou outra `v*`) e faça push dela.
+Para gerar uma release com link fixo, crie uma tag `v0.1.0` (ou outra `v*`) e faça push dela. A release recebe o .dmg direto, sem zip.
 
-O app não é assinado, então o Windows pode mostrar o aviso do SmartScreen. Clique em "Mais informações" e "Executar assim mesmo".
+O app não é assinado por um desenvolvedor registrado, então os sistemas avisam na primeira vez:
+
+- **Windows**: no aviso do SmartScreen, clique em "Mais informações" e "Executar assim mesmo".
+- **macOS**: na primeira vez o macOS bloqueia. Vá em Ajustes do Sistema > Privacidade e Segurança, role até o aviso do GuitarPad e clique em "Abrir Mesmo Assim". Depois disso abre normal.
+  Se aparecer "o app está danificado", rode no Terminal: `xattr -cr /Applications/GuitarPad.app`
+- **macOS, permissões**: o app pede Microfone (para ouvir a guitarra) e Acessibilidade (para apertar teclas). A cada versão nova baixada, pode ser preciso remover e adicionar de novo o GuitarPad em Acessibilidade.
 
 ## Primeiro uso
 
