@@ -48,18 +48,32 @@ jobs:
       - name: Empacotar DMG (macOS)
         if: runner.os == 'macOS'
         run: |
-          APP=build/GuitarPad_artefacts/Release/GuitarPad.app
+          # mostra o erro como anotacao (visivel no resumo do build)
+          fail() { echo "::error title=DMG::$1 :: $(tail -c 800 out.txt | tr '\n' ' ')"; exit 1; }
+
+          APP=$(find build -name "GuitarPad.app" -maxdepth 4 -type d | head -1)
+          [ -n "$APP" ] || { find build -maxdepth 3 > out.txt; fail "GuitarPad.app nao encontrado"; }
+          echo "App: $APP"
+
           # assinatura ad-hoc (sem conta de desenvolvedor), necessaria para rodar em Apple Silicon
-          codesign --force --deep --sign - "$APP"
-          codesign --verify --verbose "$APP"
+          xattr -cr "$APP"
+          codesign --force --deep --sign - "$APP" > out.txt 2>&1 || fail "codesign"
           lipo -info "$APP/Contents/MacOS/GuitarPad"
 
-          mkdir -p dmg
-          cp -R "$APP" dmg/
+          rm -rf dmg && mkdir -p dmg
+          ditto "$APP" dmg/GuitarPad.app
           ln -s /Applications dmg/Applications
-          cp README.md "dmg/Leia-me.md"
-          hdiutil create -volname "GuitarPad" -srcfolder dmg -fs HFS+ -format UDZO -ov GuitarPad-macOS.dmg
-          hdiutil verify GuitarPad-macOS.dmg
+          cp README.md dmg/Leia-me.md
+
+          # hdiutil as vezes falha com "Resource busy" nos runners: tenta de novo
+          ok=0
+          for i in 1 2 3 4 5; do
+            if hdiutil create -volname GuitarPad -srcfolder dmg -fs HFS+ -format UDZO -ov GuitarPad-macOS.dmg > out.txt 2>&1; then ok=1; break; fi
+            cat out.txt; echo "tentativa $i falhou"; sleep 10
+          done
+          [ $ok = 1 ] || fail "hdiutil create"
+          hdiutil verify GuitarPad-macOS.dmg > out.txt 2>&1 || fail "hdiutil verify"
+          ls -la GuitarPad-macOS.dmg
 
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Windows'
